@@ -2,6 +2,7 @@ import 'package:flame/components.dart';
 
 class PlayerComponent extends PositionComponent {
   int gridX, gridY;
+  int arrow = 3;
 
   PlayerComponent({required int startX, required int startY})
       : gridX = startX,
