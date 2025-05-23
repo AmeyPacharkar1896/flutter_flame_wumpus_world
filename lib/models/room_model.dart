@@ -1,4 +1,4 @@
-class Room {
+class RoomModel {
   final int x, y;
   bool hasWumpus = false;
   bool hasPit = false;
@@ -6,5 +6,5 @@ class Room {
   bool isVisible = false;
   Set<String> percepts = {};
 
-  Room(this.x, this.y);
+  RoomModel(this.x, this.y);
 }

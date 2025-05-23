@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:wumpus_world_flame/game/wumpus_game.dart';
 
-class MovemenentOverlay extends StatelessWidget {
-  const MovemenentOverlay({super.key, required this.game});
+class MovementOverlay extends StatelessWidget {
+  const MovementOverlay({super.key, required this.game});
 
   final WumpusGame game;
 
@@ -39,7 +39,7 @@ class MovemenentOverlay extends StatelessWidget {
               ),
               IconButton(
                 color: Colors.white,
-                icon: Icon(Icons.keyboard_arrow_down),
+                icon: Icon(Icons.keyboard_arrow_down, size: 40,),
                 onPressed: () => game.movePlayer(0, 1),
               ),
             ],

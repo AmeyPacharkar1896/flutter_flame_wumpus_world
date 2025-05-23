@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
-import 'package:wumpus_world_flame/game/player.dart';
-import 'package:wumpus_world_flame/game/room.dart';
-import 'package:wumpus_world_flame/game/world_generator.dart';
+import 'package:wumpus_world_flame/data/world_generator.dart';
+import 'package:wumpus_world_flame/game/player_component.dart';
+import 'package:wumpus_world_flame/models/room_model.dart';
 
 class WumpusGame extends FlameGame {
-  late Player player;
-  late List<List<Room>> grid;
+  late PlayerComponent player;
+  late List<List<RoomModel>> grid;
 
   static const int gridsize = 4;
   Timer? _perceptTimer;
@@ -19,13 +19,13 @@ class WumpusGame extends FlameGame {
 
     // Initialize a 4x4 grid of rooms
     grid = List.generate(gridsize, (x) {
-      return List.generate(gridsize, (y) => Room(x, y));
+      return List.generate(gridsize, (y) => RoomModel(x, y));
     });
 
     // Populate the world with hazards, gold, percepts
     generateWorld(grid);
 
-    player = Player(startX: 0, startY: 0);
+    player = PlayerComponent(startX: 0, startY: 0);
     add(player);
 
     grid[0][0].isVisible = true;
@@ -120,8 +120,8 @@ class WumpusGame extends FlameGame {
   }
 
   void movePlayer(int dx, int dy) {
-    int newX = player.gridX + dy;
-    int newY = player.gridY + dx;
+    int newX = player.gridX + dx;
+    int newY = player.gridY + dy;
 
     if (newX < 0 || newX >= gridsize || newY < 0 || newY >= gridsize) {
       debugPrint("Blocked: Wall");
@@ -129,7 +129,7 @@ class WumpusGame extends FlameGame {
     }
 
     player.moveBy(dx, dy);
-    Room room = grid[player.gridX][player.gridY];
+    RoomModel room = grid[player.gridX][player.gridY];
 
     // Reveal the room
     room.isVisible = true;
@@ -153,13 +153,13 @@ class WumpusGame extends FlameGame {
       // Clear and regenerate world
       grid = List.generate(
         gridsize,
-        (x) => List.generate(gridsize, (y) => Room(x, y)),
+        (x) => List.generate(gridsize, (y) => RoomModel(x, y)),
       );
       generateWorld(grid);
 
       // Reset and safely update player
       if (player.parent != null) remove(player);
-      player = Player(startX: 0, startY: 0);
+      player = PlayerComponent(startX: 0, startY: 0);
       add(player);
 
       // Reveal the starting room
