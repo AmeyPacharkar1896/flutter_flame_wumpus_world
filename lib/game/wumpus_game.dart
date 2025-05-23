@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:wumpus_world_flame/game/player.dart';
@@ -9,6 +11,7 @@ class WumpusGame extends FlameGame {
   late List<List<Room>> grid;
 
   static const int gridsize = 4;
+  Timer? _perceptTimer;
 
   @override
   Future<void> onLoad() async {
@@ -130,6 +133,7 @@ class WumpusGame extends FlameGame {
 
     // Reveal the room
     room.isVisible = true;
+    showPerceptsTemporarily();
 
     if (room.hasPit || room.hasWumpus) {
       overlays.add('GameOverOverlay');
@@ -145,26 +149,42 @@ class WumpusGame extends FlameGame {
   }
 
   void reset() {
-    //Reset grid
-    grid = List.generate(gridsize, (x) {
-      return List.generate(gridsize, (y) => Room(x, y));
+    try {
+      // Clear and regenerate world
+      grid = List.generate(
+        gridsize,
+        (x) => List.generate(gridsize, (y) => Room(x, y)),
+      );
+      generateWorld(grid);
+
+      // Reset and safely update player
+      if (player.parent != null) remove(player);
+      player = Player(startX: 0, startY: 0);
+      add(player);
+
+      // Reveal the starting room
+      grid[0][0].isVisible = true;
+
+      // Resume the game loop
+      resumeEngine();
+    } catch (e, stacktrace) {
+      debugPrint("Game reset failed: $e\n$stacktrace");
+    }
+  }
+
+  List<String> getCurrentPercepts() {
+    if (!isLoaded || grid.isEmpty) return [];
+    final room = grid[player.gridX][player.gridY];
+    return room.percepts.toList();
+  }
+
+  void showPerceptsTemporarily() {
+    overlays.remove('PerceptsOverlay');
+    overlays.add('PerceptsOverlay');
+
+    _perceptTimer?.cancel(); // Cancel any existing timer
+    _perceptTimer = Timer(const Duration(seconds: 3), () {
+      overlays.remove('PerceptsOverlay');
     });
-
-    generateWorld(grid);
-
-    player.gridX = 0;
-    player.gridY = 0;
-    player.position = Vector2(0, 0);
-
-    // Reveal the starting room again
-    grid[0][0].isVisible = true;
-
-    // Remove and re-add the player to ensure position and state are fresh
-    remove(player);
-    player = Player(startX: 0, startY: 0);
-    add(player);
-
-    // Resume the game
-    resumeEngine();
   }
 }
