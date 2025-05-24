@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:wumpus_world_flame/game/wumpus_game.dart';
 import 'package:wumpus_world_flame/game_overlays/arrow_overlay.dart';
 import 'package:wumpus_world_flame/game_overlays/game_message_overlay.dart';
+import 'package:wumpus_world_flame/game_overlays/main_menu_overlay.dart';
 import 'package:wumpus_world_flame/game_overlays/movement_overlay.dart';
 import 'package:wumpus_world_flame/game_overlays/percepts_overlay.dart';
 import 'package:wumpus_world_flame/game_overlays/transient_message_overlay.dart';
@@ -22,6 +23,7 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
   void initState() {
     super.initState();
     game = WumpusGame();
+    game.pauseEngine(); // Pause as soon as game is created
 
     // Wait for game to finish loading before showing overlays
     game.onLoad().then((_) {
@@ -31,12 +33,26 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
     });
   }
 
+  void startGame(BuildContext context) {
+    game.reset(); // Full reset
+    game.overlays.remove('MainMenuOverlay');
+    game.overlays.addAll([
+      'ControlsOverlay',
+      'PerceptsOverlay',
+      'ArrowOverlay',
+    ]);
+    game.resumeEngine(); // Resume the game now
+  }
+
   @override
   Widget build(BuildContext context) {
     return loaded
         ? GameWidget(
           game: game,
           overlayBuilderMap: {
+            'MainMenuOverlay':
+                (context, _) =>
+                    MainMenuOverlay(onStart: () => startGame(context)),
             'GameOverOverlay':
                 (context, _) => GameMessageOverlay(
                   message: "Game Over!",
@@ -67,11 +83,7 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
                   message: game.transientMessage ?? 'Arrow Status not found',
                 ),
           },
-          initialActiveOverlays: const [
-            'ControlsOverlay',
-            'PerceptsOverlay',
-            'ArrowOverlay',
-          ],
+          initialActiveOverlays: const ['MainMenuOverlay'],
         )
         : const Center(child: CircularProgressIndicator());
   }

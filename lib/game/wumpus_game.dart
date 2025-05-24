@@ -9,21 +9,27 @@ import 'package:wumpus_world_flame/game/arrow_component.dart';
 import 'package:wumpus_world_flame/utils/directions_util.dart';
 
 class WumpusGame extends FlameGame {
-  PlayerComponent? player;  // made nullable
+  PlayerComponent? player; // made nullable
   late List<List<RoomModel>> grid;
   String? transientMessage;
+  bool gameStarted = false;
 
   static const int gridsize = 4;
   Timer? _perceptTimer;
 
   ArrowComponent? activeArrow;
 
-  bool isGameLoaded = false;  // flag to track loading
+  bool isGameLoaded = false; // flag to track loading
 
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+    if (gameStarted) {
+      initializeGameWorld();
+    }
+  }
 
+  void initializeGameWorld() {
     // Initialize a 4x4 grid of rooms
     grid = List.generate(gridsize, (x) {
       return List.generate(gridsize, (y) => RoomModel(x, y));
@@ -37,7 +43,7 @@ class WumpusGame extends FlameGame {
 
     grid[0][0].isVisible = true;
 
-    isGameLoaded = true;  // mark game as loaded
+    isGameLoaded = true; // mark game as loaded
   }
 
   @override
@@ -74,12 +80,12 @@ class WumpusGame extends FlameGame {
         }
 
         TextPainter tp(String emoji) => TextPainter(
-              text: TextSpan(
-                text: emoji,
-                style: TextStyle(fontSize: roomSize * 0.3),
-              ),
-              textDirection: TextDirection.ltr,
-            )..layout();
+          text: TextSpan(
+            text: emoji,
+            style: TextStyle(fontSize: roomSize * 0.3),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
 
         double offsetEmojiX = left + 4;
         double offsetEmojiY = top + 4;
@@ -98,9 +104,10 @@ class WumpusGame extends FlameGame {
         }
 
         for (String percept in room.percepts) {
-          String symbol = percept == "breeze"
-              ? "💨"
-              : percept == "stench"
+          String symbol =
+              percept == "breeze"
+                  ? "💨"
+                  : percept == "stench"
                   ? "🦨"
                   : "❓";
           tp(symbol).paint(canvas, Offset(offsetEmojiX, offsetEmojiY));
@@ -171,6 +178,8 @@ class WumpusGame extends FlameGame {
 
       grid[0][0].isVisible = true;
 
+      transientMessage = null;
+      _perceptTimer?.cancel();
       isGameLoaded = true; // mark game loaded after reset
       resumeEngine();
     } catch (e, stacktrace) {
@@ -197,7 +206,8 @@ class WumpusGame extends FlameGame {
   // Animate arrow flying one tile at a time, shooting in direction dir
   Future<void> shootArrow(Direction dir) async {
     if (player == null) return;
-    if (player!.arrow <= 0) {   // note property name arrows, update if different in your PlayerComponent
+    if (player!.arrow <= 0) {
+      // note property name arrows, update if different in your PlayerComponent
       showTransientMessage("No arrows left!");
       return;
     }
