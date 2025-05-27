@@ -74,7 +74,7 @@ class WumpusGame extends FlameGame {
     final double roomSize =
         size.x < size.y ? size.x / gridSize : size.y / gridSize;
     final double offsetX = (size.x - roomSize * gridSize) / 2;
-    final double offsetY = (size.y - roomSize * gridSize) / 2;
+    final double offsetY = (size.y - roomSize * gridSize) / 2 - 70;
 
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
@@ -190,6 +190,7 @@ class WumpusGame extends FlameGame {
       _perceptTimer?.cancel();
       isGameLoaded = true; // mark game loaded after reset
       resumeEngine();
+      showPerceptsTemporarily();
     } catch (e, stacktrace) {
       debugPrint("Game reset failed: $e\n$stacktrace");
     }
@@ -202,12 +203,21 @@ class WumpusGame extends FlameGame {
   }
 
   void showPerceptsTemporarily() {
-    overlays.remove('PerceptsOverlay');
-    overlays.add('PerceptsOverlay');
-
+    // 1) Cancel any pending hide-timer
     _perceptTimer?.cancel();
-    _perceptTimer = async.Timer(const Duration(seconds: 3), () {
-      overlays.remove('PerceptsOverlay');
+
+    // 2) Remove the overlay immediately
+    overlays.remove('PerceptsOverlay');
+
+    // 3) Schedule re-adding it on the next frame:
+    Future.delayed(Duration.zero, () {
+      // Add the overlay back in
+      overlays.add('PerceptsOverlay');
+
+      // 4) Start the 3-second timer to hide it again
+      _perceptTimer = async.Timer(const Duration(seconds: 3), () {
+        overlays.remove('PerceptsOverlay');
+      });
     });
   }
 

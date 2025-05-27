@@ -45,6 +45,8 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
 
     game.reset();
     game.resumeEngine();
+    // *** show the very first percept (even if empty) ***
+    game.showPerceptsTemporarily();
     game.overlays.addAll([
       'ControlsOverlay',
       'ArrowOverlay',
@@ -72,79 +74,109 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
             // Always keep GameWidget in the tree
             Offstage(
               offstage: showMainMenu, // only hide visually
-              child: GameWidget(
-                game: game,
-                overlayBuilderMap: {
-                  'GameOverOverlay':
-                      (context, _) => GameMessageOverlay(
-                        message: "Game Over!",
-                        onReset: () {
-                          game.reset();
-                          game.overlays.remove('GameOverOverlay');
-                        },
-                      ),
-                  'VictoryOverlay':
-                      (context, _) => GameMessageOverlay(
-                        message: 'You Win!',
-                        onReset: () {
-                          game.reset();
-                          game.overlays.remove('VictoryOverlay');
-                        },
-                      ),
-                  'ControlsOverlay':
-                      (context, game) =>
-                          MovementOverlay(game: game as WumpusGame),
-                  'PerceptsOverlay':
-                      (context, _) =>
-                          PerceptsOverlay(percepts: game.getCurrentPercepts()),
-                  'ArrowOverlay': (context, game) {
-                    final player = (game as WumpusGame).player;
+              child: SizedBox.expand(
+                child: GameWidget(
+                  game: game,
+                  overlayBuilderMap: {
+                    'GameOverOverlay':
+                        (context, _) => GameMessageOverlay(
+                          message: "Game Over!",
+                          onReset: () {
+                            game.reset();
+                            // remove the overlay and re-add the core HUD overlays:
+                            game.overlays
+                              ..remove('GameOverOverlay')
+                              ..addAll([
+                                'ControlsOverlay',
+                                'ArrowOverlay',
+                                'PerceptsOverlay',
+                                'PauseMenuButtonOverlay',
+                              ]);
+                            game.resumeEngine();
+                            // ensure the first percept shows:
+                            game.showPerceptsTemporarily();
+                          },
+                        ),
+                    'VictoryOverlay':
+                        (context, _) => GameMessageOverlay(
+                          message: "You Win!",
+                          onReset: () {
+                            game.reset();
+                            game.overlays
+                              ..remove('VictoryOverlay')
+                              ..addAll([
+                                'ControlsOverlay',
+                                'ArrowOverlay',
+                                'PerceptsOverlay',
+                                'PauseMenuButtonOverlay',
+                              ]);
+                            game.resumeEngine();
+                            game.showPerceptsTemporarily();
+                          },
+                        ),
 
-                    return ArrowOverlay(
-                      arrowLeft: player?.arrow ?? 0,
-                      arrow: arrow,
-                    );
+                    'ControlsOverlay':
+                        (context, game) =>
+                            MovementOverlay(game: game as WumpusGame),
+                    'PerceptsOverlay':
+                        (context, _) => PerceptsOverlay(
+                          percepts: game.getCurrentPercepts(),
+                        ),
+                    'ArrowOverlay': (context, game) {
+                      final player = (game as WumpusGame).player;
+
+                      return ArrowOverlay(
+                        arrowLeft: player?.arrow ?? 0,
+                        arrow: arrow,
+                      );
+                    },
+                    'TransientMessageOverlay':
+                        (context, _) => TransientMessageOverlay(
+                          message:
+                              game.transientMessage ?? 'Arrow Status not found',
+                          onRemove:
+                              () => game.overlays.remove(
+                                'TransientMessageOverlay',
+                              ),
+                        ),
+
+                    'PauseMenuButtonOverlay':
+                        (context, _) => PauseMenuButtonOverlay(
+                          onPressed: () {
+                            game.pauseEngine();
+                            game.overlays.add('PauseMenuOverlay');
+                          },
+                        ),
+                    'PauseMenuOverlay':
+                        (context, _) => PauseMenuOverlay(
+                          onResume: () {
+                            game.overlays.remove('PauseMenuOverlay');
+                            game.resumeEngine();
+                          },
+                          onRestart: () {
+                            game.reset();
+                            game.overlays
+                              ..remove('PauseMenuOverlay')
+                              ..remove('ControlsOverlay')
+                              ..remove('PerceptsOverlay')
+                              ..remove('ArrowOverlay')
+                              ..remove('PauseMenuButtonOverlay');
+                            game.overlays.addAll([
+                              'ControlsOverlay',
+                              'PerceptsOverlay',
+                              'ArrowOverlay',
+                              'PauseMenuButtonOverlay',
+                            ]);
+                            game.resumeEngine();
+                            game.showPerceptsTemporarily();
+                          },
+                          onMainMenu: () {
+                            goToMainMenu();
+                          },
+                        ),
                   },
-                  'TransientMessageOverlay':
-                      (context, _) => TransientMessageOverlay(
-                        message:
-                            game.transientMessage ?? 'Arrow Status not found',
-                      ),
-                  'PauseMenuButtonOverlay':
-                      (context, _) => PauseMenuButtonOverlay(
-                        onPressed: () {
-                          game.pauseEngine();
-                          game.overlays.add('PauseMenuOverlay');
-                        },
-                      ),
-                  'PauseMenuOverlay':
-                      (context, _) => PauseMenuOverlay(
-                        onResume: () {
-                          game.overlays.remove('PauseMenuOverlay');
-                          game.resumeEngine();
-                        },
-                        onRestart: () {
-                          game.reset();
-                          game.overlays
-                            ..remove('PauseMenuOverlay')
-                            ..remove('ControlsOverlay')
-                            ..remove('PerceptsOverlay')
-                            ..remove('ArrowOverlay')
-                            ..remove('PauseMenuButtonOverlay');
-                          game.overlays.addAll([
-                            'ControlsOverlay',
-                            'PerceptsOverlay',
-                            'ArrowOverlay',
-                            'PauseMenuButtonOverlay',
-                          ]);
-                          game.resumeEngine();
-                        },
-                        onMainMenu: () {
-                          goToMainMenu();
-                        },
-                      ),
-                },
-                initialActiveOverlays: const [],
+                  initialActiveOverlays: const [],
+                ),
               ),
             ),
 

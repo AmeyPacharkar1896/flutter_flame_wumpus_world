@@ -49,27 +49,49 @@ class _PerceptsOverlayState extends State<PerceptsOverlay>
         return '💨 Breeze (Pit nearby)';
       case 'stench':
         return '🦨 Stench (Wumpus nearby)';
+      case 'glitter':
+        return '✨ Glitter (Gold nearby)';
       default:
-        return '❓ Unknown';
+        return ''; // or return null and filter it out
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (widget.percepts.isEmpty) return const SizedBox.shrink();
+    // translate & filter out any empty strings
+    final messages =
+        widget.percepts.map(_translate).where((s) => s.isNotEmpty).toList();
+    if (messages.isEmpty) return const SizedBox.shrink();
 
-    return Align(
-      alignment: Alignment.topCenter,
-      child: FadeTransition(
-        opacity: _fadeAnimation,
-        child: Container(
-          color: Colors.black.withOpacity(0.7),
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
-          margin: const EdgeInsets.only(top: 16),
-          child: Text(
-            widget.percepts.map(_translate).join('   '),
-            style: const TextStyle(color: Colors.white, fontSize: 16),
-            textAlign: TextAlign.center,
+    return SafeArea(
+      child: Align(
+        alignment: Alignment.topCenter,
+        child: FadeTransition(
+          opacity: _fadeAnimation,
+          child: Container(
+            margin: const EdgeInsets.only(top: 12, left: 16, right: 16),
+            padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 20),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.75),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.6),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Text(
+              messages.join('   '),
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                decoration: TextDecoration.none,
+              ),
+              textAlign: TextAlign.center,
+            ),
           ),
         ),
       ),
