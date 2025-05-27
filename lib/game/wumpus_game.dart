@@ -1,5 +1,6 @@
-import 'dart:async';
+import 'dart:async' as async;
 
+import 'package:flame/components.dart';
 import 'package:flame/game.dart';
 import 'package:flutter/material.dart';
 import 'package:wumpus_world_flame/game/world_generator.dart';
@@ -13,17 +14,36 @@ class WumpusGame extends FlameGame {
   late List<List<RoomModel>> grid;
   String? transientMessage;
   bool gameStarted = false;
+  async.Timer? _perceptTimer;
 
   static const int gridsize = 4;
-  Timer? _perceptTimer;
 
   ArrowComponent? activeArrow;
 
   bool isGameLoaded = false; // flag to track loading
 
+  //sprites
+  Sprite? roomSprite;
+  Sprite? goldSprite;
+  Sprite? pitSprite;
+  Sprite? arrowSprite;
+  Sprite? playerSprite;
+  Sprite? wumpusSprite;
+
   @override
   Future<void> onLoad() async {
     await super.onLoad();
+
+    // --- ASSET LOADING ---
+    roomSprite ??= await loadSprite('tiles/room.png');
+    goldSprite ??= await loadSprite('props/gold.png');
+    pitSprite ??= await loadSprite('props/pit.png');
+    arrowSprite ??= await loadSprite('props/arrow.png');
+    playerSprite ??= await loadSprite('sprites/player_idle.png');
+    wumpusSprite ??= await loadSprite('sprites/wumpus_idle.png');
+
+    // --- END ASSET LOADING ---
+
     if (gameStarted) {
       initializeGameWorld();
     }
@@ -56,79 +76,67 @@ class WumpusGame extends FlameGame {
     final double offsetX = (size.x - roomSize * gridSize) / 2;
     final double offsetY = (size.y - roomSize * gridSize) / 2;
 
-    final Paint roomPaint = Paint();
-
     for (int y = 0; y < gridSize; y++) {
       for (int x = 0; x < gridSize; x++) {
         final room = grid[x][y];
-        final double left = offsetX + x * roomSize;
-        final double top = offsetY + y * roomSize;
-        final Rect rect = Rect.fromLTWH(left, top, roomSize, roomSize);
+        final dx = offsetX + x * roomSize;
+        final dy = offsetY + y * roomSize;
+        final rect = Rect.fromLTWH(dx, dy, roomSize, roomSize);
+
+        // 1) draw the room background for every cell
+        roomSprite?.render(
+          canvas,
+          position: Vector2(dx, dy),
+          size: Vector2(roomSize, roomSize),
+        );
 
         if (!room.isVisible) {
-          roomPaint.color = Colors.black;
-          canvas.drawRect(rect, roomPaint);
+          // 2) if hidden, draw a dark overlay
+          Paint p = Paint()..color = Colors.black.withOpacity(0.8);
+          canvas.drawRect(rect, p);
           continue;
         }
 
-        roomPaint.color = const Color(0xFF444444);
-        canvas.drawRect(rect, roomPaint);
-
+        // 3) if this is the player’s cell, tint it or draw a highlight
         if (player != null && x == player!.gridX && y == player!.gridY) {
-          roomPaint.color = Colors.greenAccent;
-          canvas.drawRect(rect.deflate(2), roomPaint);
+          Paint p = Paint()..color = Colors.greenAccent.withOpacity(0.4);
+          canvas.drawRect(rect, p);
         }
 
-        TextPainter tp(String emoji) => TextPainter(
-          text: TextSpan(
-            text: emoji,
-            style: TextStyle(fontSize: roomSize * 0.3),
-          ),
-          textDirection: TextDirection.ltr,
-        )..layout();
-
-        double offsetEmojiX = left + 4;
-        double offsetEmojiY = top + 4;
-
+        // 4) draw gold/pit/wumpus if present
         if (room.hasGold) {
-          tp("💰").paint(canvas, Offset(offsetEmojiX, offsetEmojiY));
-          offsetEmojiY += roomSize * 0.25;
+          goldSprite?.render(
+            canvas,
+            position: Vector2(dx + roomSize * 0.2, dy + roomSize * 0.2),
+            size: Vector2(roomSize * 0.6, roomSize * 0.6),
+          );
         }
         if (room.hasPit) {
-          tp("🕳️").paint(canvas, Offset(offsetEmojiX, offsetEmojiY));
-          offsetEmojiY += roomSize * 0.25;
+          pitSprite?.render(
+            canvas,
+            position: Vector2(dx + roomSize * 0.2, dy + roomSize * 0.2),
+            size: Vector2(roomSize * 0.6, roomSize * 0.6),
+          );
         }
         if (room.hasWumpus) {
-          tp("👹").paint(canvas, Offset(offsetEmojiX, offsetEmojiY));
-          offsetEmojiY += roomSize * 0.25;
-        }
-
-        for (String percept in room.percepts) {
-          String symbol =
-              percept == "breeze"
-                  ? "💨"
-                  : percept == "stench"
-                  ? "🦨"
-                  : "❓";
-          tp(symbol).paint(canvas, Offset(offsetEmojiX, offsetEmojiY));
-          offsetEmojiY += roomSize * 0.2;
+          wumpusSprite?.render(
+            canvas,
+            position: Vector2(dx + roomSize * 0.1, dy + roomSize * 0.1),
+            size: Vector2(roomSize * 0.8, roomSize * 0.8),
+          );
         }
       }
     }
 
-    // Draw player icon
+    // 5) draw the player sprite on top last
     if (player != null) {
-      final playerEmoji = TextPainter(
-        text: TextSpan(text: "🧍", style: TextStyle(fontSize: roomSize * 0.5)),
-        textDirection: TextDirection.ltr,
-      )..layout();
-
-      playerEmoji.paint(
+      playerSprite?.render(
         canvas,
-        Offset(
-          offsetX + player!.gridX * roomSize + roomSize * 0.25,
-          offsetY + player!.gridY * roomSize + roomSize * 0.15,
+        position: Vector2(
+          offsetX + player!.gridX * roomSize + roomSize * 0.1,
+          offsetY + player!.gridY * roomSize + roomSize * 0.1,
         ),
+        size: Vector2(roomSize * 0.8, roomSize * 0.8),
       );
     }
   }
@@ -198,7 +206,7 @@ class WumpusGame extends FlameGame {
     overlays.add('PerceptsOverlay');
 
     _perceptTimer?.cancel();
-    _perceptTimer = Timer(const Duration(seconds: 3), () {
+    _perceptTimer = async.Timer(const Duration(seconds: 3), () {
       overlays.remove('PerceptsOverlay');
     });
   }

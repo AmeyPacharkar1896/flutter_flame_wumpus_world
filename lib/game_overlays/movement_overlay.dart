@@ -15,7 +15,7 @@ class MovementOverlay extends StatelessWidget {
       bottom: 40,
       child: Row(
         mainAxisSize: MainAxisSize.min,
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           // Shoot arrow label
           Column(
@@ -25,6 +25,7 @@ class MovementOverlay extends StatelessWidget {
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
+                  fontSize: 24,
                 ),
               ),
 
@@ -82,6 +83,7 @@ class MovementOverlay extends StatelessWidget {
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.bold,
+                      fontSize: 24,
                     ),
                   ),
                   IconButton(

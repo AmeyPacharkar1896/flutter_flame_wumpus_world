@@ -18,7 +18,7 @@ class _TransientMessageOverlayState extends State<TransientMessageOverlay> {
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         // Remove this overlay automatically
-        final overlay = Overlay.of(context);
+        Overlay.of(context);
         // If using Flame, you would call `game.overlays.remove('TransientMessageOverlay')`
         // So better to pass a callback from the parent or manage this via game class.
       }
