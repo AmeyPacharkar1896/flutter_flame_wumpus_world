@@ -142,7 +142,7 @@ class WumpusGame extends FlameGame {
   }
 
   void movePlayer(int dx, int dy) {
-    if (player == null) return; // safe guard
+    if (player == null) return;
 
     int newX = player!.gridX + dx;
     int newY = player!.gridY + dy;
@@ -152,24 +152,38 @@ class WumpusGame extends FlameGame {
       return;
     }
 
+    // Move player (logical and visual)
     player!.moveBy(dx, dy);
+
+    // Get the new room
     RoomModel room = grid[player!.gridX][player!.gridY];
 
     // Reveal the room
     room.isVisible = true;
+
+    // Show percepts immediately
     showPerceptsTemporarily();
 
-    if (room.hasPit || room.hasWumpus) {
-      overlays.add('GameOverOverlay');
-      pauseEngine();
-      return;
-    }
+    // Delay the hazard check slightly to let the move feel natural
+    Future.delayed(Duration(milliseconds: 300), () {
+      if (room.hasPit || room.hasWumpus) {
+        overlays.add('GameOverOverlay');
+        pauseEngine();
+        return;
+      }
 
-    if (room.hasGold) {
-      room.hasGold = false;
-      overlays.add('VictoryOverlay');
-      pauseEngine();
-    }
+      if (room.hasGold) {
+        room.hasGold = false;
+        player!.hasGold = true;
+        showTransientMessage("You got the gold! Now return to start!");
+      }
+
+      // Check win condition after picking gold or moving
+      if (player!.hasGold && player!.gridX == 0 && player!.gridY == 0) {
+        overlays.add('VictoryOverlay');
+        pauseEngine();
+      }
+    });
   }
 
   void reset() {
@@ -259,10 +273,21 @@ class WumpusGame extends FlameGame {
       final room = grid[x][y];
       if (room.hasWumpus) {
         room.hasWumpus = false;
-        showTransientMessage("Wumpus killed! You win!");
-        overlays.add("VictoryOverlay");
-        pauseEngine();
-        break;
+
+        // Remove stench percepts around it
+        for (var dx in [-1, 0, 1]) {
+          for (var dy in [-1, 0, 1]) {
+            if ((dx.abs() + dy.abs()) != 1) continue;
+            int nx = x + dx;
+            int ny = y + dy;
+            if (nx >= 0 && nx < gridsize && ny >= 0 && ny < gridsize) {
+              grid[nx][ny].percepts.remove('stench');
+            }
+          }
+        }
+
+        showTransientMessage("You hear a scream. The Wumpus is dead!");
+        break; // game continues
       }
 
       await Future.delayed(const Duration(milliseconds: 200));
