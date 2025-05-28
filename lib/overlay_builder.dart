@@ -80,10 +80,16 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
                   overlayBuilderMap: {
                     'GameOverOverlay':
                         (context, _) => GameMessageOverlay(
-                          message: "Game Over!",
-                          onReset: () {
-                            game.reset();
-                            // remove the overlay and re-add the core HUD overlays:
+                          resultMessage: "Game Over!",
+                          moves: game.player?.moves ?? 0,
+                          arrowsLeft: game.player?.arrow ?? 0,
+                          hasGold: game.player?.hasGold ?? false,
+                          isDead: game.isPlayerDead(),
+                          finalScore: game.calculateScore(),
+
+                          // Add two restart options here
+                          onRestartSame: () {
+                            game.reset(sameMap: true);
                             game.overlays
                               ..remove('GameOverOverlay')
                               ..addAll([
@@ -93,15 +99,33 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
                                 'PauseMenuButtonOverlay',
                               ]);
                             game.resumeEngine();
-                            // ensure the first percept shows:
+                            game.showPerceptsTemporarily();
+                          },
+                          onRestartNew: () {
+                            game.reset(sameMap: false);
+                            game.overlays
+                              ..remove('GameOverOverlay')
+                              ..addAll([
+                                'ControlsOverlay',
+                                'ArrowOverlay',
+                                'PerceptsOverlay',
+                                'PauseMenuButtonOverlay',
+                              ]);
+                            game.resumeEngine();
                             game.showPerceptsTemporarily();
                           },
                         ),
+
                     'VictoryOverlay':
                         (context, _) => GameMessageOverlay(
-                          message: "You Win!",
-                          onReset: () {
-                            game.reset();
+                          resultMessage: "You Win!",
+                          moves: game.player?.moves ?? 0,
+                          arrowsLeft: game.player?.arrow ?? 0,
+                          hasGold: game.player?.hasGold ?? false,
+                          isDead: game.isPlayerDead(),
+                          finalScore: game.calculateScore(),
+                          onRestartSame: () {
+                            game.reset(sameMap: true);
                             game.overlays
                               ..remove('VictoryOverlay')
                               ..addAll([
@@ -110,7 +134,18 @@ class _OverlayBuilderState extends State<OverlayBuilder> {
                                 'PerceptsOverlay',
                                 'PauseMenuButtonOverlay',
                               ]);
-                            game.resumeEngine();
+                            game.showPerceptsTemporarily();
+                          },
+                          onRestartNew: () {
+                            game.reset(sameMap: false);
+                            game.overlays
+                              ..remove('VictoryOverlay')
+                              ..addAll([
+                                'ControlsOverlay',
+                                'ArrowOverlay',
+                                'PerceptsOverlay',
+                                'PauseMenuButtonOverlay',
+                              ]);
                             game.showPerceptsTemporarily();
                           },
                         ),

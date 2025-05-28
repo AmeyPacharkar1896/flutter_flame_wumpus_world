@@ -7,6 +7,7 @@ import 'package:wumpus_world_flame/game/world_generator.dart';
 import 'package:wumpus_world_flame/game/player_component.dart';
 import 'package:wumpus_world_flame/models/room_model.dart';
 import 'package:wumpus_world_flame/game/arrow_component.dart';
+import 'package:wumpus_world_flame/models/score_model.dart';
 import 'package:wumpus_world_flame/utils/directions_util.dart';
 
 class WumpusGame extends FlameGame {
@@ -15,10 +16,12 @@ class WumpusGame extends FlameGame {
   String? transientMessage;
   bool gameStarted = false;
   async.Timer? _perceptTimer;
+  late List<List<RoomModel>> _originalGrid;
 
   static const int gridsize = 4;
 
   ArrowComponent? activeArrow;
+  final ScoreModel scoreModel = ScoreModel();
 
   bool isGameLoaded = false; // flag to track loading
 
@@ -57,6 +60,8 @@ class WumpusGame extends FlameGame {
 
     // Populate the world with hazards, gold, percepts
     generateWorld(grid);
+    _originalGrid =
+        grid.map((row) => row.map((room) => room.clone()).toList()).toList();
 
     player = PlayerComponent(startX: 0, startY: 0);
     add(player!);
@@ -152,6 +157,9 @@ class WumpusGame extends FlameGame {
       return;
     }
 
+    // Track move
+    scoreModel.moveMade();
+
     // Move player (logical and visual)
     player!.moveBy(dx, dy);
 
@@ -167,6 +175,7 @@ class WumpusGame extends FlameGame {
     // Delay the hazard check slightly to let the move feel natural
     Future.delayed(Duration(milliseconds: 300), () {
       if (room.hasPit || room.hasWumpus) {
+        scoreModel.died();
         overlays.add('GameOverOverlay');
         pauseEngine();
         return;
@@ -175,24 +184,40 @@ class WumpusGame extends FlameGame {
       if (room.hasGold) {
         room.hasGold = false;
         player!.hasGold = true;
+        scoreModel.collectGold();
         showTransientMessage("You got the gold! Now return to start!");
       }
 
       // Check win condition after picking gold or moving
       if (player!.hasGold && player!.gridX == 0 && player!.gridY == 0) {
+        scoreModel.addArrowBonus(player!.arrow);
+        scoreModel.addSurvivalBonus();
         overlays.add('VictoryOverlay');
         pauseEngine();
+        showTransientMessage("You won! Score: ${scoreModel.score}");
       }
     });
   }
 
-  void reset() {
+  void reset({bool sameMap = false}) {
     try {
-      grid = List.generate(
-        gridsize,
-        (x) => List.generate(gridsize, (y) => RoomModel(x, y)),
-      );
-      generateWorld(grid);
+      if (sameMap && _originalGrid.isNotEmpty) {
+        // Deep copy from original
+        grid =
+            _originalGrid
+                .map((row) => row.map((room) => room.clone()).toList())
+                .toList();
+      } else {
+        grid = List.generate(
+          gridsize,
+          (x) => List.generate(gridsize, (y) => RoomModel(x, y)),
+        );
+        generateWorld(grid);
+        _originalGrid =
+            grid
+                .map((row) => row.map((room) => room.clone()).toList())
+                .toList();
+      }
 
       if (player?.parent != null) remove(player!);
       player = PlayerComponent(startX: 0, startY: 0);
@@ -202,7 +227,10 @@ class WumpusGame extends FlameGame {
 
       transientMessage = null;
       _perceptTimer?.cancel();
-      isGameLoaded = true; // mark game loaded after reset
+      isGameLoaded = true;
+
+      scoreModel.reset();
+
       resumeEngine();
       showPerceptsTemporarily();
     } catch (e, stacktrace) {
@@ -244,6 +272,7 @@ class WumpusGame extends FlameGame {
       return;
     }
     player!.arrow--;
+    scoreModel.arrowUsed();
     showTransientMessage("Arrow shot! Arrows left: ${player!.arrow}");
 
     int x = player!.gridX;
@@ -302,5 +331,34 @@ class WumpusGame extends FlameGame {
       transientMessage = null;
       overlays.remove('TransientMessageOverlay');
     });
+  }
+
+  int calculateScore() {
+    if (player == null) return 0;
+
+    int score = 0;
+
+    // -2 points per move (cast moves to int)
+    score += (player!.moves.toInt()) * -2;
+
+    // +50 per arrow remaining
+    score += player!.arrow * 50;
+
+    // +100 if collected gold
+    if (player!.hasGold) {
+      score += 100;
+    }
+
+    // +200 if alive, -200 if dead
+    final room = grid[player!.gridX][player!.gridY];
+    final isDead = room.hasPit || room.hasWumpus;
+    score += isDead ? -200 : 200;
+
+    return score;
+  }
+
+  bool isPlayerDead() {
+    final room = grid[player!.gridX][player!.gridY];
+    return room.hasPit || room.hasWumpus;
   }
 }

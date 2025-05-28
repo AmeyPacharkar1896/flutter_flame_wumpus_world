@@ -4,6 +4,7 @@ class PlayerComponent extends PositionComponent {
   int gridX, gridY;
   int arrow = 3;
   bool hasGold = false;
+  int moves = 3;
 
   PlayerComponent({required int startX, required int startY})
       : gridX = startX,
